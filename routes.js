@@ -14,6 +14,11 @@ const products = [
         "name":"Mesa de comedor redonda de vidrio",
         "categories":["mesa", "comedor", "muebles", "vidrio"],
         "description": "Moderna mesa de 110 cm de radio",
+    },{
+        "sku": 4,
+        "name":"cama matimonial",
+        "categories":["cama", "muebles", "bed"],
+        "description": "Hermosa cama matrimonial de madera de pino",
     }
 ];
 
@@ -23,8 +28,7 @@ const express = require('express');
 const router = express.Router();
 
 const elastic = require('elasticsearch');
-const res = require('express/lib/response');
-const { json } = require('express/lib/response');
+const { json } = require('express');
 
 const bodyParser = require('body-parser').json();
 
@@ -32,16 +36,16 @@ const elasticClient = elastic.Client({
     host:'localhost:9200',
 })
 
-router.use((request, response, next) => {
+router.use((req, res, next) => {
     elasticClient.index({
         index: 'logs',
         body: {
-            url: request.url,
-            method: request.method
+            url: req.url,
+            method: req.method
         }
     })
-    .then( res => {
-        console.log( 'Logs indexed ',res);
+    .then( resp => {
+        console.log( 'Logs indexed ',resp);
     })
     .catch(err => {
         console.log(err);
@@ -49,14 +53,16 @@ router.use((request, response, next) => {
     next();
 });
 
-router.post('/products', bodyParser, (request, response) => {
+router.post('/products', bodyParser, (req, res) => {
+    console.log(req.body);
     elasticClient.index ({
-        index: products,
-        body:request.body
+        index: 'products',
+        body:req.body
     })
     .then(resp => {
-        return response.status(200).json({
-            msg:'product indexed'
+        return res.status(200).json({
+            msg:'product indexed',
+            resp
         })
     })
     .catch(err => {
@@ -110,5 +116,29 @@ router.get('/products', (req,res) => {
         })
     })
 });
+
+router.put('/products/:id', bodyParser, (req, res) => {
+    console.log(req.body);
+
+    elasticClient.update({
+        index:'products',
+        id: req.params.id,
+        body: {
+            doc:req.body
+        }
+    })
+    .then(resp => {
+        return res.status(200).json({
+            msg: 'product updated',
+            resp
+        });
+    })
+    .catch( err =>{
+        return res.status(500).json({
+            msg:'Error',
+            err
+        }) 
+    })
+})
 
 module.exports = router;
